@@ -29,7 +29,8 @@ SCW_SECRETS_PATH=/myapp/prod   # folder of the secrets to load
 
 - `key_value` secret → one variable per key, with the same prefix (`/myapp/prod/db` + `{"user": …}` → `DB_USER`).
 - `SCW_SECRET_KEY` is removed from `process.env`.
-- If a secret is inaccessible, or if two secrets map to the same variable, the application does not start.
+- A secret with no enabled version is skipped with a warning.
+- If a secret is otherwise inaccessible, or if two secrets map to the same variable, the application does not start.
 - Only variable names are logged.
 
 ## IAM

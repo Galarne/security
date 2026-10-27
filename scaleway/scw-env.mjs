@@ -17,7 +17,7 @@ async function get(url) {
       const res = await fetch(base + url, { headers: { 'X-Auth-Token': key }, signal: AbortSignal.timeout(10_000) });
       if (res.ok) return await res.json();
       retry = res.status === 429 || res.status >= 500;
-      error = new Error(`HTTP ${res.status} ${await res.text()}`);
+      error = Object.assign(new Error(`HTTP ${res.status} ${await res.text()}`), { status: res.status });
     } catch (e) {
       error = e;
     }
@@ -45,7 +45,15 @@ try {
 
   const vars = {};
   for (const s of secrets) {
-    const v = await get(`/secrets/${s.id}/versions/latest_enabled/access`);
+    let v;
+    try {
+      v = await get(`/secrets/${s.id}/versions/latest_enabled/access`);
+    } catch (e) {
+      // Secret sans version activée : ignoré, l'application démarre quand même.
+      if (e.status !== 404) throw e;
+      console.error(`scw-env: attention: ${s.path.replace(/\/?$/, '/')}${s.name} n'a aucune version activée, ignoré`);
+      continue;
+    }
     const data = Buffer.from(v.data, 'base64').toString('utf8');
     // Le sous-dossier sert de préfixe : /position + foobar -> POSITION_FOOBAR.
     const prefix = s.path.slice(root.length).replace(/^\/+|\/+$/g, '');

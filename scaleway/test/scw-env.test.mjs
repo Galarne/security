@@ -16,6 +16,8 @@ const SECRETS = [
   { id: '6', name: 'foobar', path: '/position', type: 'opaque', data: 'racine' },
   { id: '7', name: 'a', path: '/', type: 'opaque', data: 'x', project: 'dup' },
   { id: '8', name: 'A', path: '/', type: 'opaque', data: 'y', project: 'dup' },
+  { id: '9', name: 'vide', path: '/partiel', type: 'opaque' },
+  { id: '10', name: 'ok', path: '/partiel', type: 'opaque', data: 'oui' },
   ...Array.from({ length: 150 }, (_, i) => ({ id: `p${i}`, name: `s${i}`, path: '/many', type: 'opaque', data: 'v' })),
 ];
 
@@ -35,7 +37,7 @@ before(async () => {
       return send(200, { secrets: list.slice((page - 1) * size, page * size), total_count: list.length });
     }
     const s = SECRETS.find((x) => u.pathname.endsWith(`/secrets/${x.id}/versions/latest_enabled/access`));
-    if (s) return send(200, { data: Buffer.from(s.data).toString('base64') });
+    if (s?.data !== undefined) return send(200, { data: Buffer.from(s.data).toString('base64') });
     send(404, {});
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -77,6 +79,14 @@ test('pagination', async () => {
   const { code, env, stderr } = await run({ SCW_SECRETS_PATH: '/many' });
   assert.equal(code, 0, stderr);
   assert.equal(Object.keys(env).filter((k) => /^S\d+$/.test(k)).length, 150);
+});
+
+test('secret sans version activée : warning, l\'application démarre', async () => {
+  const { code, env, stderr } = await run({ SCW_SECRETS_PATH: '/partiel' });
+  assert.equal(code, 0, stderr);
+  assert.equal(env.OK, 'oui');
+  assert.equal(env.VIDE, undefined);
+  assert.match(stderr, /attention: \/partiel\/vide n'a aucune version activée/);
 });
 
 test('mauvaise clé : l\'application ne démarre pas', async () => {
